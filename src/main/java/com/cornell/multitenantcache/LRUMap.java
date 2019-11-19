@@ -28,9 +28,12 @@ public class LRUMap<K,V> {
         Node<K, V> prev = node.getPrev();
         Node<K, V> next = node.getNext();
         prev.setNext(next);
+        next.setPrev(prev);
         node.setPrev(last.getPrev());
         node.setNext(last);
+        last.getPrev().setNext(node);
         last.setPrev(last);
+
         return node.getValue();
     }
 
@@ -43,6 +46,7 @@ public class LRUMap<K,V> {
         if(map.containsKey(key)) {
             V prevValue = map.get(key).getValue();
             map.get(key).setValue(value);
+            // TODO: 19/11/19 move it back
             return prevValue;
         }
 

@@ -114,4 +114,33 @@ class MultitenantCacheApplicationTests {
 		assertEquals(0, cache.cacheState.get("C").getAvailableCount());
 
 	}
+
+	@Test
+	void cacheEvictionIfBorrowStealingAndReclaimFails() throws InterruptedException {
+		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.client("A", 2)
+				.client("B", 2)
+				.client("C", 2)
+				.build();
+		MultitenantCache<String, String> cache = new MultitenantCache<>(Duration.ofSeconds(10), config);
+		assertTrue(cache.write("A", "key1A", "value1A"));
+		assertTrue(cache.write("A", "key2A", "value2A"));
+		assertTrue(cache.write("B", "key3A", "value3A"));
+		assertTrue(cache.write("B", "key4A", "value4A"));
+		assertTrue(cache.write("C", "key5A", "value5A"));
+		assertTrue(cache.write("C", "key6A", "value6A"));
+
+		assertEquals("value1A", cache.read("A", "key1A").get());
+		assertEquals("value2A", cache.read("A", "key2A").get());
+		assertEquals("value3A", cache.read("B", "key3A").get());
+		assertEquals("value4A", cache.read("B", "key4A").get());
+		assertEquals("value5A", cache.read("C", "key5A").get());
+		assertEquals("value6A", cache.read("C", "key6A").get());
+
+		assertTrue(cache.write("A", "key7A", "value7A"));
+		assertFalse(cache.read("A", "key1A").isPresent());
+		assertTrue(cache.read("A", "key2A").isPresent());
+		assertTrue(cache.read("A", "key7A").isPresent());
+	}
+
 }

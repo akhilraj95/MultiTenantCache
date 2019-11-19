@@ -92,7 +92,7 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
 
             cached = cacheAfterEviction(clientId, key, data);
             if(cached) {
-                logger.log(INFO, "LOG,WRITE,STOLEN," + key);
+                logger.log(INFO, "LOG,WRITE,EVICTION," + key);
                 return true;
             }
 

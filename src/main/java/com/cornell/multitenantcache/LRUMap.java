@@ -4,8 +4,12 @@ import lombok.*;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class LRUMap<K,V> {
+
+    private final static Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
     private Node<K,V> first;
     private Node<K,V> last;
@@ -33,7 +37,7 @@ public class LRUMap<K,V> {
         node.setNext(last);
         last.getPrev().setNext(node);
         last.setPrev(last);
-
+        logList();
         return node.getValue();
     }
 
@@ -57,6 +61,7 @@ public class LRUMap<K,V> {
         last.setPrev(toAddNode);
         size += 1;
         map.put(key,toAddNode);
+        logList();
         return null;
     }
 
@@ -64,6 +69,7 @@ public class LRUMap<K,V> {
         Node<K, V> toDelete = first.getNext();
         first.setNext(toDelete.getNext());
         map.remove(toDelete.getKey());
+        logList();
         size -= 1;
     }
 
@@ -72,6 +78,7 @@ public class LRUMap<K,V> {
         map.remove(prev.getKey());
         last.setPrev(prev.getPrev());
         size -= 1;
+        logList();
         return prev.getValue();
     }
 
@@ -79,8 +86,19 @@ public class LRUMap<K,V> {
         return first.getNext().getKey();
     }
 
-    public Instant getOldestLastAccessTime() {
-        return first.getNext().getTime();
+    public Optional<Instant> getOldestLastAccessTime() {
+        if(first.getNext() == null) return Optional.empty();
+        return Optional.ofNullable(first.getNext().getTime());
+    }
+
+    public void logList() {
+        String log = "";
+        Node<K, V> iter = first;
+        while(iter != null) {
+            log = log + iter.getKey() + "->";
+            iter = iter.getNext();
+        }
+        logger.log(Level.INFO, log);
     }
 
     public boolean containsKey(K key) {

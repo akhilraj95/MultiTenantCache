@@ -5,6 +5,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import static junit.framework.Assert.assertSame;
@@ -30,6 +33,7 @@ class MultitenantCacheApplicationTests {
 		assertTrue(cache.write("A", "key3A", "value3A"));
 		assertTrue(cache.write("A", "key4A", "value4A"));
 		assertTrue(cache.write("A", "key5A", "value5A"));
+		cache.logCacheState();
 		assertEquals(5, cache.cacheState.get("A").getActiveCount());
 		assertEquals(2, cache.cacheState.get("C").getAvailableCount());
 		assertEquals(2, cache.cacheState.get("B").getAvailableCount());
@@ -141,6 +145,47 @@ class MultitenantCacheApplicationTests {
 		assertFalse(cache.read("A", "key1A").isPresent());
 		assertTrue(cache.read("A", "key2A").isPresent());
 		assertTrue(cache.read("A", "key7A").isPresent());
+	}
+
+	@Test
+	void cacheLongTermTest() {
+
+		List<String> keys = new ArrayList<>();
+		for (int i = 0; i < 12; i++) {
+			keys.add("Key" + i);
+		}
+		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.client("A", 2)
+				.client("B", 2)
+				.client("C", 2)
+				.build();
+		MultitenantCache<String, String> cache = new MultitenantCache<>(Duration.ofMillis(10), config);
+
+		Random rand = new Random();
+
+		for (int i = 0; i < 1000; i++) {
+			int randInt = rand.nextInt(100000);
+			int randkey = rand.nextInt(8);
+			if(randInt % 100 < 30) {
+				cache.write("A", keys.get(randkey%3), "value1A");
+			}
+			else if(randInt % 100 < 40) {
+				cache.write("B", keys.get(4+(randkey%3)), "value1A");
+			}
+			else if(randInt % 100 < 50) {
+				cache.write("C", keys.get(8+(randkey%3)), "value1A");
+			}
+			else if(randInt % 100 < 80) {
+				cache.write("A", keys.get((randkey%3)), "value1A");
+			}
+			else if(randInt % 100 < 90) {
+				cache.write("B", keys.get(4+(randkey%3)), "value1A");
+			}
+			else {
+				cache.write("C", keys.get(8+(randkey%3)), "value1A");
+			}
+
+		}
 	}
 
 }

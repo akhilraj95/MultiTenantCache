@@ -35,7 +35,7 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
 
         for (String clientID : clientCacheCount.keySet()) {
             int totalCacheSize = clientCacheCount.get(clientID);
-            cacheState.put(clientID, new CacheState(0, totalCacheSize, totalCacheSize));
+            cacheState.put(clientID, new CacheState(clientID,0, totalCacheSize, totalCacheSize));
             cache.put(clientID, new LRUMap<>());
             chunkCount += totalCacheSize;
         }
@@ -47,7 +47,8 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
     }
 
     public Optional<D> read(String clientId, K key) {
-        logger.log(INFO, "CLIENT_CACHE_STATE," + getCacheState(cacheState));
+        logger.log(INFO, "LOG_REQ,READ,"+ clientId + "," + key);
+        logCacheState();
         if (isPresent(clientId,key)) {
             logger.log(INFO, "LOG,READ,HIT," + key);
             return Optional.of(cache.get(clientId).get(key));
@@ -61,7 +62,8 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
         CacheState state = this.cacheState.get(clientId);
         if(isPresent(clientId, key)) return true;
 
-        logger.log(INFO, "CLIENT_CACHE_STATE," + getCacheState(cacheState));
+        logger.log(INFO, "LOG_REQ,WRITE,"+ clientId + "," + key);
+        logCacheState();
         if (state.getAvailableCount() > 0) {
 
             logger.log(INFO, "LOG,WRITE,AVAILABLE," + key);
@@ -101,19 +103,25 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
         }
     }
 
+    void logCacheState() {
+        logger.log(INFO, "CLIENT_CACHE_STATE," + getCacheState(cacheState));
+    }
+
     private boolean reclaimAndCache(String clientId, K key, D data) {
 
-        Map<String, Integer> borrowerList = cacheState.get(clientId).getBorrowerList();
-        for(String borrower: borrowerList.keySet()) {
-            if(borrowerList.get(borrower) > 0) {
-                cache.get(borrower).removeFirst();
-                cache.get(clientId).put(key, data);
-                cacheState.get(borrower).decrementActiveCount();
-                cacheState.get(clientId).incrementActiveCount();
-                return true;
-            }
-        }
-        return false;
+        // TODO: 21/11/19 reclaim the oldest borrowed cache
+        Optional<BorrowerState> reclaimableBorrower = cacheState.get(clientId).getReclaimableBorrower();
+        if(!reclaimableBorrower.isPresent()) return false;
+
+        String borrower = reclaimableBorrower.get().getBorrower();
+        String lender = reclaimableBorrower.get().getLender();
+
+        cache.get(borrower).removeFirst();
+        cache.get(clientId).put(key, data);
+        cacheState.get(borrower).decrementActiveCount();
+        cacheState.get(clientId).incrementActiveCount();
+        cacheState.get(lender).removeBorrower(borrower);
+        return true;
     }
 
     private boolean borrowAuxiliarySpace(String clientId, K key, D data) {
@@ -143,11 +151,11 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
     private boolean stealAuxiliarySpace(String clientId, K key, D data) {
 
         Instant now = Instant.now();
-        Instant oldestTimestamp = cache.get(clientId).getOldestLastAccessTime();
+        Instant oldestTimestamp = cache.get(clientId).getOldestLastAccessTime().orElse(Instant.now());
         String selectedClient = null;
         for(String stealableClient: cache.keySet()) {
             if(stealableClient != clientId) {
-                Instant oldestLastAccessTime = cache.get(stealableClient).getOldestLastAccessTime();
+                Instant oldestLastAccessTime = cache.get(stealableClient).getOldestLastAccessTime().orElse(Instant.now());
                 if(Duration.between(oldestLastAccessTime, now).compareTo(isolationGurantee) > 0
                         && oldestLastAccessTime.compareTo(oldestTimestamp) < 0) {
                     oldestTimestamp = oldestLastAccessTime;
@@ -179,14 +187,47 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
         return true;
     }
 
+    @Getter
+    @AllArgsConstructor
+    class BorrowerState {
+        String borrower;
+        String lender;
+    }
 
     @Getter
     @RequiredArgsConstructor()
     class CacheState {
+
+        @NonNull private String clientId;
         @NonNull private int activeCount;
         @NonNull private int availableCount;
         @NonNull private int totalCount;
         private Map<String, Integer> borrowerList = new HashMap<>();
+
+        private Optional<BorrowerState> getReclaimableBorrowerInternal(HashSet<String> checkedClients) {
+            if(checkedClients.contains(clientId)) return Optional.empty();
+            checkedClients.add(clientId);
+            for(String borrower: borrowerList.keySet()) {
+                if (borrowerList.get(borrower) > 0) {
+                    if(cacheState.get(borrower).getActiveCount() >  cacheState.get(borrower).getTotalCount()) {
+                        return Optional.of(new BorrowerState(borrower,clientId));
+                    } else {
+                        Optional<BorrowerState> reclaimableBorrower = cacheState.get(borrower)
+                                                                                .getReclaimableBorrowerInternal(checkedClients);
+                        if(reclaimableBorrower.isPresent()) {
+                            return reclaimableBorrower;
+                        }
+                    }
+                }
+            }
+            return Optional.empty();
+        }
+
+        public Optional<BorrowerState> getReclaimableBorrower() {
+            logger.log(INFO, "Reclaim " + clientId);
+            HashSet<String> checkedClients = new HashSet<>();
+            return getReclaimableBorrowerInternal(checkedClients);
+        }
 
         public void decrementAvailableCount() {
             this.availableCount -= 1;
@@ -206,7 +247,16 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
 
         //// TODO: 18/11/19 Synchronize
         public void addBorrower(String borrowerClientID) {
-            borrowerList.put(borrowerClientID, borrowerList.getOrDefault(borrowerClientID,0) + 1);
+            Integer borrowCount = cacheState.get(borrowerClientID)
+                                            .getBorrowerList()
+                                            .getOrDefault(borrowerClientID, 0);
+            if(borrowCount > 0) {
+                cacheState.get(borrowerClientID)
+                            .getBorrowerList()
+                            .put(clientId, borrowCount - 1);
+            } else {
+                borrowerList.put(borrowerClientID, borrowerList.getOrDefault(borrowerClientID,0) + 1);
+            }
         }
 
         //// TODO: 18/11/19 Synchronize

@@ -1,5 +1,6 @@
 package com.cornell.multitenantcache;
 
+import com.cornell.multitenantcache.integrations.LRUMapType;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ class MultitenantCacheApplicationTests {
 	void cacheInBorrowedAuxillarySpaceWhenAvailableTest() throws IOException {
 
 		MultitenantCachConfig config = MultitenantCachConfig.builder()
+											  .lruMapType(LRUMapType.IN_MEMORY)
 											  .client("A", 4)
 											  .client("B", 2)
 											  .client("C", 3)
@@ -42,6 +44,7 @@ class MultitenantCacheApplicationTests {
 	void cacheReadTest() throws IOException {
 
 		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.lruMapType(LRUMapType.IN_MEMORY)
 											   .client("A", 4)
 											   .client("B", 2)
 											   .client("C", 3)
@@ -58,6 +61,7 @@ class MultitenantCacheApplicationTests {
 	void cacheIsStolenWhenNotAvailableTest() throws InterruptedException {
 
 		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.lruMapType(LRUMapType.IN_MEMORY)
 				.client("A", 2)
 				.client("B", 2)
 				.client("C", 2)
@@ -84,6 +88,7 @@ class MultitenantCacheApplicationTests {
 	void cacheReclaim() throws InterruptedException {
 
 		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.lruMapType(LRUMapType.IN_MEMORY)
 				.client("A", 2)
 				.client("B", 2)
 				.client("C", 2)
@@ -120,6 +125,7 @@ class MultitenantCacheApplicationTests {
 	@Test
 	void cacheEvictionIfBorrowStealingAndReclaimFails() throws InterruptedException {
 		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.lruMapType(LRUMapType.IN_MEMORY)
 				.isolationGurantee(Duration.ofSeconds(10))
 				.client("A", 2)
 				.client("B", 2)
@@ -154,6 +160,7 @@ class MultitenantCacheApplicationTests {
 			keys.add("Key" + i);
 		}
 		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.lruMapType(LRUMapType.IN_MEMORY)
 				.isolationGurantee(Duration.ofSeconds(10))
 				.client("A", 2)
 				.client("B", 2)

@@ -1,15 +1,16 @@
 package com.cornell.multitenantcache;
 
-import com.cornell.multitenantcache.integrations.SimpleLRUMap;
+import com.cornell.multitenantcache.integrations.LRUMap;
+import com.cornell.multitenantcache.integrations.LRUMapFactory;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertEquals;
 
-class SimpleLRUMapTest {
+class BasicLRUMapTest {
 
     @Test
     public void writeIsOrdered() {
-        SimpleLRUMap<String, String> lruMap = new SimpleLRUMap<>();
+        LRUMap<Object, Object> lruMap = LRUMapFactory.getLRUWithInMemoryCache();
         lruMap.put("1", "Val1");
         lruMap.put("2", "Val2");
         lruMap.put("3", "Val3");
@@ -25,7 +26,7 @@ class SimpleLRUMapTest {
 
     @Test
     public void orderIsShuffledOnRead() {
-        SimpleLRUMap<String, String> lruMap = new SimpleLRUMap<>();
+        LRUMap<Object, Object> lruMap = LRUMapFactory.getLRUWithInMemoryCache();
         lruMap.put("1", "Val1");
         lruMap.put("2", "Val2");
         lruMap.put("3", "Val3");

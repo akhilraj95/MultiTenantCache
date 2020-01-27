@@ -1,26 +1,23 @@
 package com.cornell.multitenantcache.integrations;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
 import java.time.Instant;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class SimpleLRUMap<K,V> implements LRUMap<K,V> {
+public class BasicLRUMap<K,V> implements LRUMap<K, V> {
 
     private final static Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
+    private DataStore<K, V> dataStore;
     private Node<K,V> first;
     private Node<K,V> last;
+    private HashMap<K, Node<K,V>> map;
     int size;
 
-    private HashMap<K,Node<K,V>> map;
-
-    public SimpleLRUMap() {
+    public BasicLRUMap(DataStore store){
+        this.dataStore = store;
         this.first = new Node<>();
         this.last = new Node<>();
         first.setNext(last);
@@ -30,7 +27,6 @@ public class SimpleLRUMap<K,V> implements LRUMap<K,V> {
 
     @Override
     public V get(K key) {
-
         if(!map.containsKey(key)) return null;
         Node<K, V> node = map.get(key);
         Node<K, V> prev = node.getPrev();
@@ -60,8 +56,7 @@ public class SimpleLRUMap<K,V> implements LRUMap<K,V> {
             return prevValue;
         }
 
-
-        Node<K, V> toAddNode = new Node<>(key, value, Instant.now(), last, last.getPrev());
+        Node<K, V> toAddNode = new Node<>(key, value, dataStore, Instant.now(), last, last.getPrev());
 
         last.getPrev().setNext(toAddNode);
         last.setPrev(toAddNode);
@@ -92,7 +87,7 @@ public class SimpleLRUMap<K,V> implements LRUMap<K,V> {
 
     @Override
     public K getOldestKey() {
-        return (K) first.getNext().getKey();
+        return first.getNext().getKey();
     }
 
     @Override
@@ -117,15 +112,4 @@ public class SimpleLRUMap<K,V> implements LRUMap<K,V> {
         return map.containsKey(key);
     }
 
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @NoArgsConstructor
-    static class Node<K, V> {
-        K key;
-        V value;
-        Instant time;
-        Node<K,V> next;
-        Node<K,V> prev;
-    }
 }

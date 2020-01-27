@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Singular;
 
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Map;
 

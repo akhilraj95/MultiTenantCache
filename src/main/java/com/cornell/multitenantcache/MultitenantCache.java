@@ -37,7 +37,11 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
         for (String clientID : clientCacheCount.keySet()) {
             int totalCacheSize = clientCacheCount.get(clientID);
             cacheState.put(clientID, new CacheState(clientID,0, totalCacheSize, totalCacheSize));
-            cache.put(clientID, LRUMapFactory.getNewInstance(config.getLruMapType()));
+            try {
+                cache.put(clientID, LRUMapFactory.getNewInstance(config.getLruMapType()));
+            } catch (ClassCastException e) {
+                logger.log(Level.SEVERE, "Check if DataStore supports the requested identifier and data types.",e);
+            }
             chunkCount += totalCacheSize;
         }
     }

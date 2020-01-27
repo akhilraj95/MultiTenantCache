@@ -1,7 +1,6 @@
 package com.cornell.multitenantcache;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -15,7 +14,6 @@ import static junit.framework.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-@SpringBootTest
 class MultitenantCacheApplicationTests {
 
 	@Test
@@ -26,7 +24,7 @@ class MultitenantCacheApplicationTests {
 											  .client("B", 2)
 											  .client("C", 3)
 											  .build();
-		MultitenantCache<String, String> cache = new MultitenantCache<>(Duration.ofSeconds(1), config);
+		MultitenantCache<String, String> cache = new MultitenantCache<>(config);
 
 		assertTrue(cache.write("A", "key1A", "value1A"));
 		assertTrue(cache.write("A", "key2A", "value2A"));
@@ -48,7 +46,7 @@ class MultitenantCacheApplicationTests {
 											   .client("B", 2)
 											   .client("C", 3)
 											   .build();
-		MultitenantCache<String, String> cache = new MultitenantCache<>(Duration.ofSeconds(1), config);
+		MultitenantCache<String, String> cache = new MultitenantCache<>(config);
 
 		assertTrue(cache.write("A", "key1A", "value1A"));
 		assertSame("value1A", cache.read("A", "key1A").get());
@@ -64,7 +62,7 @@ class MultitenantCacheApplicationTests {
 				.client("B", 2)
 				.client("C", 2)
 				.build();
-		MultitenantCache<String, String> cache = new MultitenantCache<>(Duration.ofSeconds(1), config);
+		MultitenantCache<String, String> cache = new MultitenantCache<>(config);
 		assertTrue(cache.write("B", "key1A", "value1A"));
 		assertTrue(cache.write("B", "key2A", "value2A"));
 		TimeUnit.SECONDS.sleep(1);
@@ -90,7 +88,7 @@ class MultitenantCacheApplicationTests {
 				.client("B", 2)
 				.client("C", 2)
 				.build();
-		MultitenantCache<String, String> cache = new MultitenantCache<>(Duration.ofSeconds(1), config);
+		MultitenantCache<String, String> cache = new MultitenantCache<>(config);
 		assertTrue(cache.write("B", "key1A", "value1A"));
 		assertTrue(cache.write("B", "key2A", "value2A"));
 		TimeUnit.SECONDS.sleep(1);
@@ -122,11 +120,12 @@ class MultitenantCacheApplicationTests {
 	@Test
 	void cacheEvictionIfBorrowStealingAndReclaimFails() throws InterruptedException {
 		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.isolationGurantee(Duration.ofSeconds(10))
 				.client("A", 2)
 				.client("B", 2)
 				.client("C", 2)
 				.build();
-		MultitenantCache<String, String> cache = new MultitenantCache<>(Duration.ofSeconds(10), config);
+		MultitenantCache<String, String> cache = new MultitenantCache<>(config);
 		assertTrue(cache.write("A", "key1A", "value1A"));
 		assertTrue(cache.write("A", "key2A", "value2A"));
 		assertTrue(cache.write("B", "key3A", "value3A"));
@@ -155,11 +154,12 @@ class MultitenantCacheApplicationTests {
 			keys.add("Key" + i);
 		}
 		MultitenantCachConfig config = MultitenantCachConfig.builder()
+				.isolationGurantee(Duration.ofSeconds(10))
 				.client("A", 2)
 				.client("B", 2)
 				.client("C", 2)
 				.build();
-		MultitenantCache<String, String> cache = new MultitenantCache<>(Duration.ofMillis(10), config);
+		MultitenantCache<String, String> cache = new MultitenantCache<>(config);
 
 		Random rand = new Random();
 

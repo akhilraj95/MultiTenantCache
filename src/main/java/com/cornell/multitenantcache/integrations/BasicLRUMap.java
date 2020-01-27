@@ -1,23 +1,23 @@
-package com.cornell.multitenantcache;
-
-import lombok.*;
+package com.cornell.multitenantcache.integrations;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class LRUMap<K,V> {
+public class BasicLRUMap<K,V> implements LRUMap<K, V> {
 
     private final static Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 
+    private DataStore<K, V> dataStore;
     private Node<K,V> first;
     private Node<K,V> last;
+    private HashMap<K, Node<K,V>> map;
     int size;
 
-    private HashMap<K,Node<K,V>> map;
-
-    public LRUMap() {
+    public BasicLRUMap(DataStore store){
+        this.dataStore = store;
         this.first = new Node<>();
         this.last = new Node<>();
         first.setNext(last);
@@ -25,8 +25,8 @@ public class LRUMap<K,V> {
         this.map = new HashMap<>();
     }
 
-    public V get(Object key) {
-
+    @Override
+    public V get(K key) {
         if(!map.containsKey(key)) return null;
         Node<K, V> node = map.get(key);
         Node<K, V> prev = node.getPrev();
@@ -36,15 +36,17 @@ public class LRUMap<K,V> {
         node.setPrev(last.getPrev());
         node.setNext(last);
         last.getPrev().setNext(node);
-        last.setPrev(last);
+        last.setPrev(node);
         logList();
         return node.getValue();
     }
 
-    public Optional<V> optionalGet(Object key) {
+    @Override
+    public Optional<V> optionalGet(K key) {
         return Optional.ofNullable(get(key));
     }
 
+    @Override
     public V put(K key, V value) {
 
         if(map.containsKey(key)) {
@@ -54,8 +56,7 @@ public class LRUMap<K,V> {
             return prevValue;
         }
 
-
-        Node<K, V> toAddNode = new Node<>(key, value, Instant.now(), last, last.getPrev());
+        Node<K, V> toAddNode = new Node<>(key, value, dataStore, Instant.now(), last, last.getPrev());
 
         last.getPrev().setNext(toAddNode);
         last.setPrev(toAddNode);
@@ -65,6 +66,7 @@ public class LRUMap<K,V> {
         return null;
     }
 
+    @Override
     public void removeFirst() {
         Node<K, V> toDelete = first.getNext();
         first.setNext(toDelete.getNext());
@@ -73,6 +75,7 @@ public class LRUMap<K,V> {
         size -= 1;
     }
 
+    @Override
     public V removeLast() {
         Node<K, V> prev = last.getPrev();
         map.remove(prev.getKey());
@@ -82,15 +85,18 @@ public class LRUMap<K,V> {
         return prev.getValue();
     }
 
+    @Override
     public K getOldestKey() {
         return first.getNext().getKey();
     }
 
+    @Override
     public Optional<Instant> getOldestLastAccessTime() {
         if(first.getNext() == null) return Optional.empty();
         return Optional.ofNullable(first.getNext().getTime());
     }
 
+    @Override
     public void logList() {
         String log = "";
         Node<K, V> iter = first;
@@ -101,20 +107,9 @@ public class LRUMap<K,V> {
         logger.log(Level.INFO, log);
     }
 
+    @Override
     public boolean containsKey(K key) {
         return map.containsKey(key);
-    }
-
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @NoArgsConstructor
-    class Node<K,V> {
-        K key;
-        V value;
-        Instant time;
-        Node<K,V> next;
-        Node<K,V> prev;
     }
 
 }

@@ -1,5 +1,7 @@
 package com.cornell.multitenantcache;
 
+import com.cornell.multitenantcache.integrations.LRUMap;
+import com.cornell.multitenantcache.integrations.LRUMapFactory;
 import lombok.*;
 
 
@@ -23,11 +25,10 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
     // Meta
     private int chunkCount;
 
-    public MultitenantCache(Duration isolationGurantee,
-                            MultitenantCachConfig config) {
+    public MultitenantCache(MultitenantCachConfig config) {
 
         setupLogger();
-        this.isolationGurantee = isolationGurantee;
+        this.isolationGurantee = config.getIsolationGurantee();
 
         Map<String, Integer> clientCacheCount = config.getClientCacheCount();
         cacheState = new HashMap<>();
@@ -36,7 +37,11 @@ public class MultitenantCache<K extends Serializable, D extends Serializable> im
         for (String clientID : clientCacheCount.keySet()) {
             int totalCacheSize = clientCacheCount.get(clientID);
             cacheState.put(clientID, new CacheState(clientID,0, totalCacheSize, totalCacheSize));
-            cache.put(clientID, new LRUMap<>());
+            try {
+                cache.put(clientID, LRUMapFactory.getNewInstance(config.getLruMapType()));
+            } catch (ClassCastException e) {
+                logger.log(Level.SEVERE, "Check if DataStore supports the requested identifier and data types.",e);
+            }
             chunkCount += totalCacheSize;
         }
     }
